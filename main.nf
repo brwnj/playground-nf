@@ -36,7 +36,7 @@ Channel.fromPath(params.manifest)
         def r2 = file(row[5])
         [sample_id, group_id, run_id, r1, r2]
     }
-    .set { fastq_ ch }
+    .set { fastq_ch }
 
 
 // qc the fastqs
