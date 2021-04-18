@@ -1,5 +1,4 @@
 params.manifest = false
-params.fastqs
 params.fasta = false
 params.outdir
 params.gff = false
