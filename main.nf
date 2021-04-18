@@ -1,6 +1,6 @@
-params.manifest
+params.manifest = false
 params.fastqs
-params.fasta
+params.fasta = false
 params.outdir
 params.gff = false
 sexchroms = params.sexchroms ?: 'X,Y'
