@@ -1,3 +1,4 @@
+params.manifest
 params.fastqs
 params.fasta
 params.outdir
@@ -11,8 +12,10 @@ sexchroms = sexchroms.replaceAll(" ", "")
 outdir = file(params.outdir)
 // regions = file(params.regions)
 
+if( !params.manifest ) { exit 1, "--manifest is not defined" }
 if( !params.fasta ) { exit 1, "--fasta is not defined" }
 // assumes .alt, .amb, .ann, .bwt, .pac, and .sa are present
+
 fasta = file(params.fasta)
 faidx = file("${params.fasta}.fai")
 gff = params.gff ? file(params.gff) : params.gff
