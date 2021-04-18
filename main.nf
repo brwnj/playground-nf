@@ -28,12 +28,12 @@ Channel
 Channel.fromPath(params.manifest)
     .splitCsv()
     .map { row ->
-        def sample_id = row[1]
+        def sample_id = row[0]
         // currently not in use; just use dummy or blank col here
-        def group_id = row[2]
-        def run_id = row[3]
-        def r1 = file(row[4])
-        def r2 = file(row[5])
+        def group_id = row[1]
+        def run_id = row[2]
+        def r1 = file(row[3])
+        def r2 = file(row[4])
         [sample_id, group_id, run_id, r1, r2]
     }
     .set { fastq_ch }
