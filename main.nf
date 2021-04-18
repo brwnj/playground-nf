@@ -21,10 +21,20 @@ Channel
     .value(file("${params.fasta}.{amb,ann,bwt,pac,sa}"))
     .set { bwaidx_ch }
 
-// emits [SRR493366, [/my/data/SRR493366_1.fastq, /my/data/SRR493366_2.fastq]]
-Channel
-    .fromFilePairs(params.fastqs, flat: true)
-    .set { fastq_ch }
+// ingests the sample/file manifest
+// format of the CSV is: sample, group, lane, r1, r2
+Channel.fromPath(params.manifest)
+    .splitCsv()
+    .map { row ->
+        def sample_id = row[1]
+        // currently not in use; just use dummy or blank col here
+        def group_id = row[2]
+        def run_id = row[3]
+        def r1 = file(row[4])
+        def r2 = file(row[5])
+        [sample_id, group_id, run_id, r1, r2]
+    }
+    .set { fastq_ ch }
 
 
 // qc the fastqs
@@ -33,11 +43,11 @@ process fastp {
     publishDir path: "$outdir/html", pattern: "*.html"
 
     input:
-    set sample_id, file(r1), file(r2) from fastq_ch
+    set sample_id, group_id, run_id, file(r1), file(r2) from fastq_ch
 
     output:
-    set sample_id, file("${sample_id}_R1.fastq.gz"), file("${sample_id}_R2.fastq.gz") into checked_fastq_ch
-    file("${sample_id}.fastp.json") into fastp_report_ch
+    set sample_id, run_id, file("${sample_id}_R1.fastq.gz"), file("${sample_id}_R2.fastq.gz") into checked_fastq_ch
+    file("${sample_id}_${run_id}.fastp.json") into fastp_report_ch
     file("${sample_id}.fastp.html")
 
     script:
@@ -50,19 +60,21 @@ process fastp {
 
 
 process bwamem {
+    tag "${sample_id}:${run_id}"
+
     input:
-    set sample_id, file(r1), file(r2) from checked_fastq_ch
+    set sample_id, run_id, file(r1), file(r2) from checked_fastq_ch
     file(fasta)
     file(bwaidx) from bwaidx_ch
 
     output:
-    set sample_id, file("${sample_id}.bam") into bwa_ch
+    set sample_id, file("${sample_id}_${run_id}.bam") into bwa_ch
 
     script:
-    rg = "@RG\\tID:${sample_id}\\tPU:${sample_id}\\tSM:${sample_id}\\tLB:${sample_id}\\tPL:illumina"
+    rg = "@RG\\tID:${run_id}\\tPU:${run_id}\\tSM:${sample_id}\\tLB:${sample_id}\\tPL:illumina"
     """
-    bwa mem -K 100000000 -R \"${rg}\" -t ${task.cpus} -M ${fasta} $r1 $r2 \
-        | samtools sort -n --threads ${task.cpus} -m 2G --output-fmt BAM -o ${sample_id}.bam
+    bwa mem -K 100000000 -R \"${rg}\" -t ${task.cpus} -M ${fasta} ${r1} ${r2} \
+        | samtools sort -n --threads ${task.cpus} -m 2G --output-fmt BAM -o ${sample_id}_${run_id}.bam
     """
 }
 
@@ -72,7 +84,7 @@ process markduplicates {
     publishDir path: "$outdir/alignments", overwrite: true
 
     input:
-    set sample_id, file(bam) from bwa_ch
+    set sample_id, file(bam) from bwa_ch.groupTuple()
 
     output:
     set sample_id, file("${sample_id}.md.bam"), file("${sample_id}.md.bam.bai") into md_ch
@@ -80,7 +92,7 @@ process markduplicates {
     script:
     """
     gatk --java-options -Xmx${task.memory.toGiga()}g MarkDuplicatesSpark \
-        --input $bam \
+        ${bam.collect { "--input $it" }.join(" ")} \
         --output ${sample_id}.md.bam \
         --tmp-dir . \
         --spark-master \'local[*]\'
