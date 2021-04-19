@@ -56,7 +56,7 @@ process fastp {
     """
     fastp --thread ${task.cpus} --in1 $r1 --out1 ${sample_id}_R1.fastq.gz \
         --in2 $r2 --out2 ${sample_id}_R2.fastq.gz -y \
-        --json ${sample_id}.fastp.json --html ${sample_id}.fastp.html
+        --json ${sample_id}_${run_id}.fastp.json --html ${sample_id}.fastp.html
     """
 }
 
